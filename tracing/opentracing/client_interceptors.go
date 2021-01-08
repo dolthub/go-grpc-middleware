@@ -24,7 +24,7 @@ func UnaryClientInterceptor(opts ...Option) grpc.UnaryClientInterceptor {
 		if o.filterOutFunc != nil && !o.filterOutFunc(parentCtx, method) {
 			return invoker(parentCtx, method, req, reply, cc, opts...)
 		}
-		newCtx, clientSpan := newClientSpanFromContext(parentCtx, o.tracer, method)
+		newCtx, clientSpan := newClientSpanFromContext(parentCtx, o.tracerFactory(parentCtx), method)
 		if o.unaryRequestHandlerFunc != nil {
 			o.unaryRequestHandlerFunc(clientSpan, req)
 		}
@@ -41,7 +41,7 @@ func StreamClientInterceptor(opts ...Option) grpc.StreamClientInterceptor {
 		if o.filterOutFunc != nil && !o.filterOutFunc(parentCtx, method) {
 			return streamer(parentCtx, desc, cc, method, opts...)
 		}
-		newCtx, clientSpan := newClientSpanFromContext(parentCtx, o.tracer, method)
+		newCtx, clientSpan := newClientSpanFromContext(parentCtx, o.tracerFactory(parentCtx), method)
 		clientStream, err := streamer(newCtx, desc, cc, method, opts...)
 		if err != nil {
 			finishClientSpan(clientSpan, err)

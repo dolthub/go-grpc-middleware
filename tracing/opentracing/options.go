@@ -12,7 +12,7 @@ import (
 var (
 	defaultOptions = &options{
 		filterOutFunc: nil,
-		tracer:        nil,
+		tracerFactory: nil,
 	}
 )
 
@@ -27,9 +27,11 @@ type UnaryRequestHandlerFunc func(span opentracing.Span, req interface{})
 // OpNameFunc is a func that allows custom operation names instead of the gRPC method.
 type OpNameFunc func(method string) string
 
+type TracerFactory func(ctx context.Context) opentracing.Tracer
+
 type options struct {
 	filterOutFunc           FilterFunc
-	tracer                  opentracing.Tracer
+	tracerFactory           TracerFactory
 	traceHeaderName         string
 	unaryRequestHandlerFunc UnaryRequestHandlerFunc
 	opNameFunc              OpNameFunc
@@ -41,8 +43,8 @@ func evaluateOptions(opts []Option) *options {
 	for _, o := range opts {
 		o(optCopy)
 	}
-	if optCopy.tracer == nil {
-		optCopy.tracer = opentracing.GlobalTracer()
+	if optCopy.tracerFactory == nil {
+		optCopy.tracerFactory = defaultTracerFactory
 	}
 	if optCopy.traceHeaderName == "" {
 		optCopy.traceHeaderName = "uber-trace-id"
@@ -70,7 +72,14 @@ func WithTraceHeaderName(name string) Option {
 // WithTracer sets a custom tracer to be used for this middleware, otherwise the opentracing.GlobalTracer is used.
 func WithTracer(tracer opentracing.Tracer) Option {
 	return func(o *options) {
-		o.tracer = tracer
+		o.tracerFactory = constantFactory(tracer)
+	}
+}
+
+// WithTracerFactory sets a factory to get the tracer to be used for this middleware.
+func WithTracerFactory(factory TracerFactory) Option {
+	return func(o *options) {
+		o.tracerFactory = factory
 	}
 }
 
@@ -86,4 +95,14 @@ func WithOpName(f OpNameFunc) Option {
 	return func(o *options) {
 		o.opNameFunc = f
 	}
+}
+
+func constantFactory(tracer opentracing.Tracer) TracerFactory {
+	return func(ctx context.Context) opentracing.Tracer {
+		return tracer
+	}
+}
+
+func defaultTracerFactory(ctx context.Context) opentracing.Tracer {
+	return opentracing.GlobalTracer()
 }

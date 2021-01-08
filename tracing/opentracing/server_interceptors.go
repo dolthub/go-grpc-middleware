@@ -31,7 +31,7 @@ func UnaryServerInterceptor(opts ...Option) grpc.UnaryServerInterceptor {
 		if o.opNameFunc != nil {
 			opName = o.opNameFunc(info.FullMethod)
 		}
-		newCtx, serverSpan := newServerSpanFromInbound(ctx, o.tracer, o.traceHeaderName, opName)
+		newCtx, serverSpan := newServerSpanFromInbound(ctx, o.tracerFactory(ctx), o.traceHeaderName, opName)
 		if o.unaryRequestHandlerFunc != nil {
 			o.unaryRequestHandlerFunc(serverSpan, req)
 		}
@@ -52,7 +52,7 @@ func StreamServerInterceptor(opts ...Option) grpc.StreamServerInterceptor {
 		if o.opNameFunc != nil {
 			opName = o.opNameFunc(info.FullMethod)
 		}
-		newCtx, serverSpan := newServerSpanFromInbound(stream.Context(), o.tracer, o.traceHeaderName, opName)
+		newCtx, serverSpan := newServerSpanFromInbound(stream.Context(), o.tracerFactory(stream.Context()), o.traceHeaderName, opName)
 		wrappedStream := grpc_middleware.WrapServerStream(stream)
 		wrappedStream.WrappedContext = newCtx
 		err := handler(srv, wrappedStream)
